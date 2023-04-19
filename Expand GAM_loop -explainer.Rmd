@@ -1,0 +1,307 @@
+---
+title: "Compare SKT and GAM"
+author: "Mike Wessel"
+date: "2023-04-17"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+
+# See library statements below for needed packages that need to be installed if not already
+# e.g.  install.packages("rkt",dependencies=TRUE) # package to perform seasonal kendall tau;
+
+# open libraries
+library(tidyverse)
+library(haven)
+library(rkt)
+library(here)
+library(forecast)
+library(pracma)
+library(xts)
+library(lmtest)
+library(EnvStats)
+library(imputeTS)
+library(car)
+library(foreign)
+library(wqtrends)
+library(lubridate)
+library(kableExtra)
+
+
+### CLEAR WORKSPACE - EACH RUN REQUIRES CLEARING CACHE TO RESET LISTS ETC..
+rm(list = ls())
+
+```
+
+
+Initial data analysis conducted using R script SKT GAM Comp Run.r which saves out a file called df_total2. That file contains the results of SKT and the GAM based method applied to 15 sites including fixed stations, and estuarine and lake probabilistic designs. All sites contained at least 60 nonmissing observations which is  part of the standard PC inclusion criteria. 
+
+The analysis includes two types of GAM based runs, one on the raw data (i.e., not date averaged so e.g. W1 would have 4 observations for each date), and one using a date average which preserves the period of time when there were 9 sampling periods which were then reduced to 8. 
+
+The SKT uses sample period median values for its test based on the current 8 sample period assignments used for the Pinellas County Report Card.  
+
+The results below suggest there a total of 8 discrepancies which we will examine one at a time in alpha numeric order. 
+
+All the following plots and analysis use the "Raw" data to express the data in its most basic form
+
+```{r summ, include=TRUE, echo=FALSE}
+
+setwd(here::here("./data"))
+results<-readRDS("df_total2.RDS")
+
+sumit<-as_tibble(readRDS("df_total2.RDS"))%>%
+    select(station,param,final_td,mt_td,mt_raw_td,final_est)%>%
+    rename(skt=final_td,GAM_Avg=mt_td,GAM_Raw=mt_raw_td,skt_direction=final_est)%>%
+    kbl(caption = paste0("Trend Result Comparison"))%>%
+   kable_styling()
+sumit
+```
+
+# First Example
+
+09-02	TN: The SKT suggests NO TREND while both GAM based tests suggest trend. 
+
+This site was not found to contain significant autocorrelation according to the SKT methodology. 
+
+As seen in the plots below there is a data gap that may be throwing off the GAM method
+
+```{r ex1,inclue=FALSE, echo=FALSE, message=FALSE, warnings=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "09-02" & Param == "TN")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "TN"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "Chlorophyll-a (ug/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "TN (mg/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+# Second Example
+
+19-08 TN: The SKT suggests a statistically significant DECREASING TREND while both GAM based tests suggest NO TREND. 
+
+This site was not found to contain significant autocorrelation according to the SKT methodology. 
+
+GAM produced a warning that the Transformation introduced infinite values in continuous y-axis. 
+
+Again,neither the Raw or Averaged GAM methods suggest significant results.
+
+The regression plot with the box and whiskers below suggests a DECREASING slope.  
+
+```{r ex2,inclue=FALSE, echo=FALSE, message=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "19-08" & Param == "TN")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "TN"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "TN (mg/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "TN (mg/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+# Third Example
+
+W1 Chlorophyll a: The SKT suggests a statistically significant INCREASING TREND while both GAM based tests suggest NO TREND. 
+
+This site was not found to contain significant autocorrelation according to the SKT methodology. 
+
+GAM produced a warning that the Transformation introduced infinite values in continuous y-axis.
+
+Again neither the raw or averaged GAM methods suggest significant results. 
+
+The regression plot with the box and whiskers below suggest a INCREASING slope. 
+
+```{r ex3,inclue=FALSE, echo=FALSE, message=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "W1" & Param == "Chl_a")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "Chl_a"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "Chlorophyll-a (ug/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "Chl_a (ug/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+
+# Fourth Example
+
+W4 TN: The results were Trend, Trend, No Trend for the SKT, Gam Avg, and Gam Raw, respectively.  
+
+This site was not found to contain significant autocorrelation according to the SKT methodology. 
+
+
+The percent change plot suggests a significant difference between start and end points.
+
+The regression plot with the box and whiskers below suggest a increasing slope. 
+
+The GAM averaged (and SKT) result was significant but the GAM Raw was not
+
+```{r ex4,inclue=FALSE, echo=FALSE, message=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "W4" & Param == "TN")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "TN"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "TN (mg/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "TN (mg/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+# Fifth Example
+
+W5 Chl_a: In this example the exact opposite occurs: No Trend, No Trend, Trend. 
+
+The raw GAM fit suggest no seasonality - looks like a bad fit overall 
+
+The percent change plot suggests NO significant difference between start and end points. 
+
+However, the regression plot with the box and whiskers below suggest a increasing slope. 
+
+```{r ex5,inclue=FALSE, echo=FALSE, message=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "W5" & Param == "Chl_a")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "Chl_a"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "Chlorophyll-a (ug/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "Chl_a (ug/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+
+# Sixth Example
+
+W6 TN: The Results of this example suggest: Trend, Trend,  No Trend for SKT, GAM avg, and GAM raw, respectively
+
+The percent change plot suggests a significant difference between start and end points.
+
+The regression plot with the box and whiskers below suggest a increasing slope. 
+
+
+```{r ex6,inclue=FALSE, echo=FALSE, message=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "W6" & Param == "TN")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "TN"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "TN (mg/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "TN (mg/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+# Seventh Example
+
+W7 Chla Result: Trend,  No Trend, No Trend
+
+The percent change plot suggests a significant difference between start and end points.
+
+The regression plot with the box and whiskers below suggest a slight decreasing slope.
+
+
+```{r ex7,inclue=FALSE, echo=FALSE, message=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "W7" & Param == "Chl_a")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "Chl_a"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "Chlorophyll a (ug/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "Chl_a (ug/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+# Eighth Example
+
+W8 Chla Result: No Trend,  No Trend, Trend
+
+Looks like a poor GAM fit overall, similar to example 5
+
+The percent change plot suggests NO significant difference between start and end point.
+
+The regression plot with the box and whiskers below suggest a increasing slope. 
+
+```{r ex8,inclue=FALSE, echo=FALSE, message=FALSE}
+# get working directory
+setwd(here::here("./data"))
+
+mod<-readRDS("formt_raw.RDS")%>%
+  filter(station == "W8" & Param == "Chl_a")%>%
+  anlz_gam(., trans = 'log10')
+ylab <- "Chl_a"
+show_prdseries(mod, ylab = ylab)+ggtitle("Raw Data Plot with GAM smooth fit")
+show_perchg(mod, baseyr = 2003, testyr = 2020, ylab = "Chlorophyll a (ug/L)")
+
+#season
+metseason <- anlz_metseason(mod, metfun = mean, doystr = 1, doyend = 364, nsim = 10000)
+#Uses reml instead of ml
+mixed<- anlz_mixmeta(metseason, yrstr = 2003, yrend = 2020)
+show_metseason(mod, doystr = 1, doyend = 364, yrstr = 2003, yrend = 2020, ylab = "Chl_a (ug/L)")
+show_sumtrndseason(mod, doystr = 1, doyend = 364, justify = 'left', win = 5:15)
+
+```
+
+
